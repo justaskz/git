@@ -1,0 +1,60 @@
+---
+name: build-macos
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Dependencies
+        run: brew install autoconf automake libtool gettext openssl curl expat
+
+      - name: Build
+        run: |
+          make configure
+          ./configure --prefix=$HOME/git-portable \
+                      --with-openssl=$(brew --prefix openssl) \
+                      --with-curl=$(brew --prefix curl) \
+                      --with-expat=$(brew --prefix expat) \
+                      --without-tcltk \
+                      CFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix curl)/include" \
+                      LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix curl)/lib -static-libgcc"
+
+          # Force static linking for core dependencies where possible
+          make -j$(sysctl -n hw.ncpu) \
+               NO_INSTALL_HARDLINKS=1 \
+               NO_TCLTK=1 \
+               LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix curl)/lib"
+
+          make install
+
+      - name: Extract Version
+        id: get_version
+        run: |
+          VERSION=$(git describe --tags --always | sed 's/^v//')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Package
+        run: |
+          cd $HOME
+          tar -czvf git-macos-${{ steps.get_version.outputs.VERSION }}.tar.gz git-portable
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.VERSION }}-${{ github.run_number }}
+          name: Git Standalone ${{ steps.get_version.outputs.VERSION }}
+          files: ~/git-macos-${{ steps.get_version.outputs.VERSION }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
