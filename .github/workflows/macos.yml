@@ -1,9 +1,5 @@
 ---
-name: build-macos
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
     inputs:
       git_tag:
@@ -15,7 +11,8 @@ env:
   GIT_TAG: ${{ github.event.inputs.git_tag }}
 
 jobs:
-  build-macos:
+  build:
+    name: Build Version ${{ env.GIT_TAG }}
     runs-on: macos-latest
     permissions:
       contents: write
