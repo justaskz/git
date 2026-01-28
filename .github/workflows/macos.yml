@@ -41,19 +41,23 @@ jobs:
       - name: Extract Version
         id: get_version
         run: |
-          VERSION=$(cat GIT-VERSION-FILE | cut -d' ' -f3 | tr -d '\n')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          RAW_VERSION=$(cat GIT-VERSION-FILE | cut -d' ' -f3 | tr -d '\n')
+          CLEAN_VERSION=${RAW_VERSION#GIT_VERSION=}
+          echo "VERSION=$CLEAN_VERSION" >> $GITHUB_OUTPUT
 
       - name: Package
         run: |
+          PKG_NAME="git-macos-${{ steps.get_version.outputs.VERSION }}"
+          mv $HOME/git-portable $HOME/$PKG_NAME
           cd $HOME
-          tar -czvf git-macos-${{ steps.get_version.outputs.VERSION }}.tar.gz git-portable
+          tar -czvf $PKG_NAME.tar.gz $PKG_NAME
+          cp $PKG_NAME.tar.gz $GITHUB_WORKSPACE/
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION }}-${{ github.run_number }}
-          name: Git Standalone ${{ steps.get_version.outputs.VERSION }}
-          files: ~/git-macos-${{ steps.get_version.outputs.VERSION }}.tar.gz
+          name: v${{ steps.get_version.outputs.VERSION }}
+          files: /Users/runner/git-macos-${{ steps.get_version.outputs.VERSION }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
