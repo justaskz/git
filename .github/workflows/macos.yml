@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      git_version:
+        description: "Git version to build (e.g. v2.52.0)"
+        required: true
+        default: main
 
 jobs:
   build-macos:
