@@ -18,31 +18,30 @@ jobs:
           fetch-depth: 0
 
       - name: Dependencies
-        run: brew install autoconf automake libtool gettext openssl curl expat
+        run: brew install autoconf automake libtool gettext openssl@3 curl expat
 
       - name: Build
         run: |
+          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          export OPENSSL_PATH=$(brew --prefix openssl@3)
+          export CURL_PATH=$(brew --prefix curl)
+          export EXPAT_PATH=$(brew --prefix expat)
+
           make configure
           ./configure --prefix=$HOME/git-portable \
-                      --with-openssl=$(brew --prefix openssl) \
-                      --with-curl=$(brew --prefix curl) \
-                      --with-expat=$(brew --prefix expat) \
+                      --with-openssl=$OPENSSL_PATH \
+                      --with-curl=$CURL_PATH \
+                      --with-expat=$EXPAT_PATH \
                       --without-tcltk \
-                      CFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix curl)/include" \
-                      LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix curl)/lib -static-libgcc"
+                      CC=gcc
 
-          # Force static linking for core dependencies where possible
-          make -j$(sysctl -n hw.ncpu) \
-               NO_INSTALL_HARDLINKS=1 \
-               NO_TCLTK=1 \
-               LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix curl)/lib"
-
+          make -j$(sysctl -n hw.ncpu)
           make install
 
       - name: Extract Version
         id: get_version
         run: |
-          VERSION=$(git describe --tags --always | sed 's/^v//')
+          VERSION=$(cat GIT-VERSION-FILE | cut -d' ' -f3 | tr -d '\n')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Package
